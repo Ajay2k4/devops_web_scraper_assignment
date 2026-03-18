@@ -6,10 +6,10 @@ const fs = require("fs");
 
   try {
     // Read target URL from environment variable
-    const url = process.env.SCRAPE_URL || "https://example.com";
+    const url = process.env.SCRAPE_URL || "https://en.wikipedia.org/wiki/Artificial_intelligence";
     console.log("Target URL:", url);
 
-    // Launch headless Chromium browser
+    // Launch headless browser
     const browser = await puppeteer.launch({
       headless: true,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
@@ -17,22 +17,34 @@ const fs = require("fs");
 
     const page = await browser.newPage();
 
-    // Navigate to the provided webpage
+    // Open the webpage
     console.log("Opening webpage");
     await page.goto(url, { waitUntil: "networkidle2" });
 
-    // Extract required information from the page
+    // Extract data from the page
     console.log("Extracting page information");
     const data = await page.evaluate(() => {
-      const headingElement = document.querySelector("h1");
+      const heading = document.querySelector("h1")?.innerText || "No heading";
+
+      // Find first meaningful paragraph
+      let summary = "No content found";
+      const paragraphs = document.querySelectorAll("p");
+
+      for (let p of paragraphs) {
+        if (p.innerText.trim().length > 50) {
+          summary = p.innerText;
+          break;
+        }
+      }
 
       return {
         title: document.title,
-        heading: headingElement ? headingElement.innerText : "No heading found",
+        heading: heading,
+        summary: summary,
       };
     });
 
-    // Save the scraped data to a JSON file
+    // Save data to JSON file
     console.log("Saving scraped data to file");
     fs.writeFileSync("scraped_data.json", JSON.stringify(data, null, 2));
 
@@ -41,6 +53,7 @@ const fs = require("fs");
 
     await browser.close();
     console.log("Browser closed");
+
   } catch (error) {
     console.error("Error while running scraper:", error);
   }
